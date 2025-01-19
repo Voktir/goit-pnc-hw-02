@@ -1,219 +1,117 @@
-def create_matrix_key(keyword):
-    """Створює матрицю для табличного шифру на основі ключового слова"""
-    size = len(keyword)
-    matrix = [['' for _ in range(size)] for _ in range(size)]
-    
-    top, bottom = 0, size-1
-    left, right = 0, size-1
-    index = 0
-    
-    while top <= bottom and left <= right and index < len(keyword):
-        for i in range(left, right + 1):
-            if index < len(keyword):
-                matrix[top][i] = keyword[index]
-                index += 1
-        top += 1
-        
-        for i in range(top, bottom + 1):
-            if index < len(keyword):
-                matrix[i][right] = keyword[index]
-                index += 1
-        right -= 1
-        
-        if top <= bottom:
-            for i in range(right, left - 1, -1):
-                if index < len(keyword):
-                    matrix[bottom][i] = keyword[index]
-                    index += 1
-            bottom -= 1
-        
-        if left <= right:
-            for i in range(bottom, top - 1, -1):
-                if index < len(keyword):
-                    matrix[i][left] = keyword[index]
-                    index += 1
-            left += 1
-    
-    return matrix
+import os
+vigenere = __import__('1_vigenere')
 
-def get_matrix_positions(matrix):
-    """Отримує позиції символів в матриці в порядку зростання"""
-    positions = {}
-    size = len(matrix)
-    
-    chars_with_positions = []
-    for i in range(size):
-        for j in range(size):
-            if matrix[i][j]:
-                chars_with_positions.append((matrix[i][j], i, j))
-    
-    chars_with_positions.sort(key=lambda x: x[0])
-    
-    for index, (char, i, j) in enumerate(chars_with_positions):
-        positions[index] = (i, j)
-    
-    return positions
+# Константа алфавіту
+ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-def prepare_text_with_positions(text):
-    """Підготовка тексту із збереженням спеціальних символів"""
-    special_chars = {}
-    clean_text = ""
-    for i, char in enumerate(text):
-        if char.isalpha():
-            clean_text += char.upper()
-        else:
-            special_chars[i] = char
-    return clean_text, special_chars
+def create_matrix(key: str) -> list[list[str]]:
+    """
+    Створює матрицю для Полібіанського квадрата на основі ключа.
+    Літера 'I' і 'J' об'єднуються в одну позицію.
+    Аргументи:
+        key (str): Ключ для створення матриці.
+    Повертає:
+        list[list[str]]: Матриця розміром 5x5.
+    """
+    unique_key = ''.join(sorted(set(key.upper()), key=key.upper().index))
+    unique_key = unique_key.replace('J', 'I')
+    modified_alphabet = ALPHABET.replace('J', '')
+    remaining_chars = ''.join([c for c in modified_alphabet if c not in unique_key])
+    matrix_chars = unique_key + remaining_chars
+    
+    return [matrix_chars[i:i + 5] for i in range(0, len(matrix_chars), 5)]
 
-def restore_special_chars(text, special_chars, original_length):
-    """Відновлення спеціальних символів у тексті"""
-    result = list(text)
-    offset = 0
-    
-    for pos, char in sorted(special_chars.items()):
-        result.insert(pos, char)
-        offset += 1
-    
-    return ''.join(result[:original_length])
 
-# ------------------------- РІВЕНЬ 1 -------------------------
-def matrix_encrypt(text, keyword):
-    """Шифрування тексту табличним шифром зі збереженням форматування"""
-    # Зберігаємо спеціальні символи
-    original_length = len(text)
-    clean_text, special_chars = prepare_text_with_positions(text)
-    
-    # Створюємо матрицю та отримуємо позиції
-    matrix = create_matrix_key(keyword)
-    positions = get_matrix_positions(matrix)
-    
-    # Доповнюємо текст, якщо потрібно
-    block_size = len(keyword)
-    padding_length = (block_size - (len(clean_text) % block_size)) % block_size
-    clean_text += 'X' * padding_length
-    
-    # Шифруємо текст блоками
-    encrypted = ''
-    for i in range(0, len(clean_text), block_size):
-        block = clean_text[i:i + block_size]
-        encrypted_block = [''] * block_size
-        
-        for j, char in enumerate(block):
-            pos = positions[j]
-            encrypted_block[pos[0] * len(matrix) + pos[1]] = char
-        
-        encrypted += ''.join(encrypted_block)
-    
-    # Відновлюємо спеціальні символи
-    return restore_special_chars(encrypted, special_chars, original_length)
-
-def matrix_decrypt(encrypted_text, keyword):
-    """Дешифрування тексту табличним шифром зі збереженням форматування"""
-    # Зберігаємо спеціальні символи
-    original_length = len(encrypted_text)
-    clean_text, special_chars = prepare_text_with_positions(encrypted_text)
-    
-    # Створюємо матрицю та отримуємо позиції
-    matrix = create_matrix_key(keyword)
-    positions = get_matrix_positions(matrix)
-    
-    # Створюємо зворотній словник позицій
-    reverse_positions = {(i, j): pos for pos, (i, j) in positions.items()}
-    
-    # Дешифруємо текст блоками
-    decrypted = ''
-    block_size = len(keyword)
-    
-    for i in range(0, len(clean_text), block_size):
-        block = clean_text[i:i + block_size]
-        decrypted_block = [''] * block_size
-        
-        for j, char in enumerate(block):
-            row, col = j // len(matrix), j % len(matrix)
-            original_pos = reverse_positions.get((row, col))
-            if original_pos is not None:
-                decrypted_block[original_pos] = char
-        
-        decrypted += ''.join(decrypted_block)
-    
-    # Відновлюємо спеціальні символи
-    return restore_special_chars(decrypted, special_chars, original_length)
-
-# ------------------------- РІВЕНЬ 2 -------------------------
-def vigenere_encrypt_with_spaces(text, key):
-    """Шифрування методом Віженера зі збереженням форматування"""
-    original_length = len(text)
-    clean_text, special_chars = prepare_text_with_positions(text)
-    key = ''.join(c.upper() for c in key if c.isalpha())
-    key = (key * (len(clean_text) // len(key) + 1))[:len(clean_text)]
-    
-    encrypted = ''
-    for i in range(len(clean_text)):
-        shift = (ord(clean_text[i]) + ord(key[i]) - 2 * ord('A')) % 26
-        encrypted += chr(shift + ord('A'))
-    
-    return restore_special_chars(encrypted, special_chars, original_length)
-
-def combined_encrypt(text, vigenere_key, matrix_key):
-    """Комбіноване шифрування зі збереженням форматування"""
-    # Спочатку шифруємо методом Віженера
-    vigenere_encrypted = vigenere_encrypt_with_spaces(text, vigenere_key)
-    
-    # Потім застосовуємо табличний шифр
-    return matrix_encrypt(vigenere_encrypted, matrix_key)
-
-def visualize_matrix(matrix):
-    """Візуалізація матриці шифрування"""
-    print("\nМатриця шифрування:")
+def print_matrix(matrix: list[list[str]]):
+    """
+    Виводить Полібіанський квадрат у зрозумілому форматі.
+    Аргументи:
+        matrix (list[list[str]]): Матриця розміром 5x5.
+    """
+    print("Полібіанський квадрат:")
     for row in matrix:
-        print(' '.join(f'{c:2}' for c in row))
+        print(" ".join(row))
+    print()
 
-def level1_demo(text):
-    """Демонстрація роботи першого рівня"""
-    print("\n" + "="*50)
-    print("РІВЕНЬ 1: Табличний шифр")
-    print("="*50)
-    
-    keyword = "MATRIX"
-    print(f"Початковий текст:\n{text}")
-    print(f"\nКлюч: {keyword}")
-    
-    matrix = create_matrix_key(keyword)
-    visualize_matrix(matrix)
-    
-    encrypted = matrix_encrypt(text, keyword)
-    print(f"\nЗашифрований текст:\n{encrypted}")
-    
-    decrypted = matrix_decrypt(encrypted, keyword)
-    print(f"\nРозшифрований текст:\n{decrypted}")
-    
-    return encrypted
+def table_transform(text: str, key: str, encrypt: bool) -> str:
+    """
+    Універсальна функція для шифрування або дешифрування тексту 
+    за допомогою Полібіанського квадрата.
 
-def level2_demo(text):
-    """Демонстрація роботи другого рівня"""
-    print("\n" + "="*50)
-    print("РІВЕНЬ 2: Комбінований шифр (Віженер + Табличний)")
-    print("="*50)
-    
-    vigenere_key = "CRYPTOGRAPHY"
-    matrix_key = "CRYPTO"
-    
-    print(f"Початковий текст:\n{text}")
-    print(f"\nКлюч Віженера: {vigenere_key}")
-    print(f"Ключ матриці: {matrix_key}")
-    
-    matrix = create_matrix_key(matrix_key)
-    visualize_matrix(matrix)
-    
-    encrypted = combined_encrypt(text, vigenere_key, matrix_key)
-    print(f"\nЗашифрований текст:\n{encrypted}")
+    Args:
+        text (str): Текст для обробки.
+        key (str): Ключ для створення матриці.
+        encrypt (bool): True для шифрування, False для дешифрування.
+
+    Returns:
+        str: Оброблений текст.
+    """
+    matrix = create_matrix(key)  # Створення матриці
+    print_matrix(matrix)  # Виведення матриці для наочності
+    direction = 1 if encrypt else -1  # Визначення напрямку зміщення
+    transformed_text = []
+
+    for char in text:
+        if char.isalpha():  # Обробляємо лише літери
+            found = False
+            for col in range(len(matrix[0])):
+                column_letters = [matrix[row][col] for row in range(len(matrix))]
+                if char.upper() in column_letters:
+                    row_index = column_letters.index(char.upper())
+                    new_row = (row_index + direction) % len(matrix)
+                    transformed_char = matrix[new_row][col]
+                    transformed_text.append(transformed_char.lower() if char.islower() else transformed_char)
+                    found = True
+                    break
+            if not found:
+                transformed_text.append(char)  # Якщо буква не знайдена, додаємо її як є
+        else:
+            transformed_text.append(char)  # Нешифровані символи залишаються незмінними
+    return ''.join(transformed_text)
+
+
+
+def read_file(file_path: str) -> str:
+    """
+    Зчитує текст із файлу.
+    Аргументи:
+        file_path (str): Шлях до файлу.
+    Повертає:
+        str: Текст із файлу.
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            return file.read()
+    except FileNotFoundError:
+        print(f"Помилка: файл '{file_path}' не знайдено.")
+        return ""
 
 if __name__ == "__main__":
-    # Тестовий текст
-    sample_text = "The artist is the creator of beautiful things. To reveal art and conceal the artist is art's aim. The critic is he who can translate into another manner or a new material his impression of beautiful things. The highest, as the lowest, form of criticism is a mode of autobiography. Those who find ugly meanings in beautiful things are corrupt without being charming. This is a fault. Those who find beautiful meanings in beautiful things are the cultivated. For these there is hope. They are the elect to whom beautiful things mean only Beauty. There is no such thing as a moral or an immoral book. Books are well written, or badly written. That is all. The nineteenth-century dislike of realism is the rage of Caliban seeing his own face in a glass. The nineteenth-century dislike of Romanticism is the rage of Caliban not seeing his own face in a glass. The moral life of man forms part of the subject matter of the artist, but the morality of art consists in the perfect use of an imperfect medium. No artist desires to prove anything. Even things that are true can be proved. No artist has ethical sympathies. An ethical sympathy in an artist is an unpardonable mannerism of style. No artist is ever morbid. The artist can express everything. Thought and language are to the artist instruments of an art. Vice and virtue are to the artist materials for an art. From the point of view of form, the type of all the arts is the art of the musician. From the point of view of feeling, the actor's craft is the type. All art is at once surface and symbol. Those who go beneath the surface do so at their peril. Those who read the symbol do so at their peril. It is the spectator, and not life, that art really mirrors. Diversity of opinion about a work of art shows that the work is new, complex, vital. When critics disagree the artist is in accord with himself. We can forgive a man for making a useful thing as long as he does not admire it. The only excuse for making a useless thing is that one admires it intensely. All art is quite useless."
+    # Завантаження тексту
+    text = read_file('plain_text.txt')
+    if not text:
+        exit()  # Завершення програми, якщо файл не знайдено
     
-    # Демонстрація Рівня 1
-    encrypted_text = level1_demo(sample_text)
+    key= "MATRIX"
+    key2= "CRYPTO"
+
+    encrypted_text = table_transform(text, key, encrypt=True)
+    print(f"Зашифрований текст:\n{encrypted_text}\n")
     
-    # Демонстрація Рівня 2
-    level2_demo(sample_text)
+    decrypted_text = table_transform(encrypted_text, key, encrypt=False)
+    print(f"Розшифрований текст:\n{decrypted_text}\n")
+
+
+    # Шифрування тексту спочатку використовуючи шифр Віженера, потім табличний шифр з ключем "CRYPTO"
+    encrypted_text = vigenere.vigenere_encrypt(text, key)
+    print(f"=== Зашифрований текст Віженером: ===\n{encrypted_text}\n")
+     
+    encrypted_text_table = table_transform(encrypted_text, key2, encrypt=True)
+    print(f"=== Подвійно зашифрований текст Полібіанським квадратом: ===\n{encrypted_text_table}\n")
+    
+    # Розшифрування двічи зашифрованого тексту 
+    decrypted_text_table = table_transform(encrypted_text_table, key2, encrypt=False)
+    print(f"=== Розшифрований текст перший рівень ===:\n{decrypted_text_table}\n")
+    
+    decrypted_text = vigenere.vigenere_decrypt(decrypted_text_table, key)
+    print(f"=== Розшифрований текст другий рівень: ===\n{decrypted_text}\n")
