@@ -24,11 +24,11 @@ def create_matrix(key: str) -> list[list[str]]:
 
 def print_matrix(matrix: list[list[str]]):
     """
-    Виводить Полібіанський квадрат у зрозумілому форматі.
+    Виводить квадрат Полібія у зрозумілому форматі.
     Аргументи:
         matrix (list[list[str]]): Матриця розміром 5x5.
     """
-    print("Полібіанський квадрат:")
+    print("квадрат Полібія:")
     for row in matrix:
         print(" ".join(row))
     print()
